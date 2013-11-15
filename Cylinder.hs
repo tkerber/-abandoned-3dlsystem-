@@ -1,5 +1,6 @@
 module Cylinder(
-  drawCylinder
+  drawCylinder,
+  cylinder
 ) where
 -- I am not working with OpenGL's vector type for as much of this program as
 -- I can, as my grasp of monads is shaky at best, and that of OpenGL even
@@ -34,6 +35,7 @@ drawQuads :: [Quad] -> IO ()
 drawQuads q = do
   mapM (\(n, v1, v2, v3, v4) -> do
     renderPrimitive Quads $ do
+      color (Color3 (1::GLfloat) 0 0)
       normal (toNorm n)
       vertex (toVertex v1)
       vertex (toVertex v2)

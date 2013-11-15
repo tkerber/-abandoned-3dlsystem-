@@ -12,9 +12,12 @@ module Vector(
   orthogonal,
   rot,
   toNorm,
-  toVertex
+  toVertex,
+  v0,
+  (~||)
 ) where
 
+-- For conversion to Vertex3 and Normal3
 import Graphics.Rendering.OpenGL
 
 -- As I'm only dealing with 3D vectors here, I am being a bit lazy and not
@@ -65,9 +68,20 @@ len :: Floating a => Vector a -> a
 len v = sqrt $ v `dot` v
 
 -- Finds a vector orthogonal to the given vector.
-orthogonal :: (Num a, Eq a) => Vector a -> Vector a
-orthogonal (Vector a 0 0) = Vector 0 1 0
-orthogonal v = v `cross` Vector 1 0 0
+-- Note that the "almost parallel" check is required, as vectors almost
+-- parallel to 1 0 0 will have a length of "0", due to floating point error.
+orthogonal :: (Floating a, Ord a) => Vector a -> Vector a
+orthogonal v
+  | v ~|| Vector 1 0 0 = v `cross` Vector 0 1 0
+  | otherwise          = v `cross` Vector 1 0 0
+
+(~||) :: (Floating a, Ord a) => Vector a -> Vector a -> Bool
+v1 ~|| v2 = almostParallel (norm v1) (norm v2)
+  where
+    almostParallel (Vector a b c) (Vector a' b' c') =
+        (a ~= a' && b ~= b' && c ~= c') ||
+        ((-a) ~= a' && (-b) ~= b' && (-c) ~= c')
+    a ~= b = abs (a - b) <= 1.0 / (10 ^ 10)
 
 -- A bit ugly, but it works. And no, I'm not making a matrix type just for a
 -- few rotations.
@@ -105,4 +119,7 @@ toNorm (Vector a b c) = Normal3 a b c
 
 toVertex :: Vector a -> Vertex3 a
 toVertex (Vector a b c) = Vertex3 a b c
+
+v0 :: Num a => Vector a
+v0 = Vector 0 0 0
 
