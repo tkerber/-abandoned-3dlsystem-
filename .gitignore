@@ -1,4 +1,5 @@
 dist
+3DLSystem
 cabal-dev
 *.o
 *.hi

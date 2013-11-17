@@ -13,6 +13,7 @@ module Vector(
   rot,
   toNorm,
   toVertex,
+  toGLVector,
   v0,
   (~||)
 ) where
@@ -89,36 +90,40 @@ v1 ~|| v2 = almostParallel (norm v1) (norm v2)
 rot :: Floating a => Vector a -> a -> Vector a -> Vector a
 rot u a v = Vector
   (
-    ((1 - cos') + ux * ux * cos') * vx +
-    (ux * uy * cos' - uz * sin') * vy +
-    (ux * uz * cos' + uy * sin') * vz
+    (cos' + ux * ux * cos'') * vx +
+    (ux * uy * cos'' - uz * sin') * vy +
+    (ux * uz * cos'' + uy * sin') * vz
   )
   (
-    (uy * ux * cos' + uz * sin') * vx +
-    ((1 - cos') + uy * uy * cos') * vy +
-    (uy * uz * cos' - ux * sin') * vz
+    (uy * ux * cos'' + uz * sin') * vx +
+    (cos' + uy * uy * cos'') * vy +
+    (uy * uz * cos'' - ux * sin') * vz
   )
   (
-    (uz * ux * cos' - uy * sin') * vx +
-    (uz * uy * cos' + ux * sin') * vy +
-    ((1 - cos') + uz * uz * cos') * vz
+    (uz * ux * cos'' - uy * sin') * vx +
+    (uz * uy * cos'' + ux * sin') * vy +
+    (cos' + uz * uz * cos'') * vz
   )
   where
     u' = norm u
-    ux = x u
-    uy = y u
-    uz = z u
+    ux = x u'
+    uy = y u'
+    uz = z u'
     vx = x v
     vy = y v
     vz = z v
     sin' = sin a
-    cos' = 1 - cos a
+    cos' = cos a
+    cos'' = 1 - cos a
 
 toNorm :: Vector a -> Normal3 a
 toNorm (Vector a b c) = Normal3 a b c
 
 toVertex :: Vector a -> Vertex3 a
 toVertex (Vector a b c) = Vertex3 a b c
+
+toGLVector :: Vector a -> Vector3 a
+toGLVector (Vector a b c) = Vector3 a b c
 
 v0 :: Num a => Vector a
 v0 = Vector 0 0 0

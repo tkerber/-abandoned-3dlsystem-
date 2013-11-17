@@ -1,8 +1,8 @@
 module Graphics(
-  drawLSystem
+  drawEdges
 ) where
 
-import Cylinder
+import Primitives
 import LSystem
 import qualified Data.Map as Map
 import Graphics.Rendering.OpenGL
@@ -10,10 +10,15 @@ import Vector
 
 -- iterations -> expansion rule -> initial string -> length -> 
 -- cylinder radius -> cylinder sides
-drawLSystem :: Int -> Map.Map Char String -> String -> GLfloat -> GLfloat ->
-    Int -> IO ()
-drawLSystem n m init l r s = do
-  mapM (\(_, vs, ve) -> do
-      drawCylinder vs ve r s
-    ) (edgeExpand n m init l)
+drawEdges :: [Edge GLfloat] -> GLfloat -> Int -> IO ()
+drawEdges [] _ _ = return()
+drawEdges edges r s = do
+  -- Draw a sphere for the first end
+  case head edges of
+    (m, v, _) -> drawSphere m v r s
+  mapM (\(m, vs, ve) -> do
+      drawCylinder m vs ve r s
+      -- And then always just one.
+      drawSphere m ve r s
+    ) edges
   return ()
