@@ -15,7 +15,10 @@ import Graphics.UI.GLUT as GLUT
 class Render a where
   render :: a -> IO ()
 
-data Renderable = forall a . Render a => Renderable a
+data Renderable = forall a . (Render a, Show a) => Renderable a
+
+instance Show Renderable where
+  show (Renderable x) = show x
 
 instance Render Renderable where
   render (Renderable x) = render x

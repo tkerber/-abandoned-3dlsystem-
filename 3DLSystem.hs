@@ -89,7 +89,7 @@ readMats = Map.fromList . readMats'
         (fromIntegral (intFromHex $ take 2 $ drop 2 x) / 255.0)
         (fromIntegral (intFromHex $ take 2 $ drop 4 x) / 255.0)
     intFromHex [] = 0
-    intFromHex (x:xs) = hexDigit x + (intFromHex xs) * 16
+    intFromHex (x:xs) = hexDigit x * (16 ^ length xs) + intFromHex xs
     hexDigit x
       | x >= '0' && x <= '9' = ord x - ord '0'
       | x >= 'a' && x <= 'f' = ord x - ord 'a' + 10
@@ -97,16 +97,13 @@ readMats = Map.fromList . readMats'
       | otherwise            = error "Expected hex digit."
 
 edgeLength :: Floating a => a
-edgeLength = 0.1
+edgeLength = 0.05
 
 edgeRadius :: Floating a => a
 edgeRadius = 0.01
 
 cylinderSides :: Num a => a
 cylinderSides = 16
-
-lsystem :: Renderable
-lsystem = composeLSystem edges edgeRadius 16
 
 -- Finds the weighted center of the edges.
 weightedCenter :: [LS.Edge GLfloat] -> Vector3 GLfloat

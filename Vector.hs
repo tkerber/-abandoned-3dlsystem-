@@ -82,7 +82,7 @@ v1 ~|| v2 = almostParallel (norm v1) (norm v2)
     almostParallel (Vector a b c) (Vector a' b' c') =
         (a ~= a' && b ~= b' && c ~= c') ||
         ((-a) ~= a' && (-b) ~= b' && (-c) ~= c')
-    a ~= b = abs (a - b) <= 1.0 / (10 ^ 10)
+    a ~= b = abs (a - b) <= 1.0 / (10 ^ 5)
 
 -- A bit ugly, but it works. And no, I'm not making a matrix type just for a
 -- few rotations.
