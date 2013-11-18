@@ -36,22 +36,6 @@ lightAmbient = Color4 0.0 0.0 0.0 1.0
 lightSpecular :: Color4 GLfloat
 lightSpecular = Color4 0.0 0.0 0.0 1.0
 
-lightPosition :: Vertex4 GLfloat
-lightPosition = Vertex4 (-1.0) 0 (-1.0) 1.0
-
-initfn :: IO ()
-initfn = let light0 = Light 0 in do
-  ambient light0 $= lightAmbient
-  diffuse light0 $= lightDiffuse
-  specular light0 $= lightSpecular
-  position (Light 0) $= lightPosition
-  light light0 $= Enabled
-  lighting $= Enabled
-  normalize $= Enabled
-  
-  depthFunc $= Just Lequal
-  rotate (-20)    ((Vector3 1.0 0.0 0.0)::Vector3 GLfloat)
-
 idle :: IORef GLfloat -> IdleCallback
 idle angle = do
   angle $~! (+ rotationSpeed)
@@ -97,42 +81,80 @@ readMats = Map.fromList . readMats'
       | otherwise            = error "Expected hex digit."
 
 edgeLength :: Floating a => a
-edgeLength = 0.05
+edgeLength = 1
 
 edgeRadius :: Floating a => a
-edgeRadius = 0.01
+edgeRadius = 0.3
 
 cylinderSides :: Num a => a
 cylinderSides = 16
 
 -- Finds the weighted center of the edges.
-weightedCenter :: [LS.Edge GLfloat] -> Vector3 GLfloat
-weightedCenter edges = toGLVector $ neg $
+weightedCenter :: [LS.Edge GLfloat] -> Vector GLfloat
+weightedCenter edges = neg $
   foldr (addVecs) v0 edges // fromIntegral (length edges * 2)
   where
     addVecs (_, u, w) v = v /+ u /+ w
 
---maxRadius :: GLfloat
---maxRadius = maximum $ concat $ map radii edges
---  where
---    radii (_, v, u) =
---      [radius (v /- weightedCenter), radius (u /- weightedCenter)]
---    radius (Vector x _ z) = sqrt (x * x + z * z)
+maxDistance :: [LS.Edge GLfloat] -> Vector GLfloat -> GLfloat
+maxDistance edges center = maximum $ concat $ map radii edges
+  where
+    radii (_, v, u) =
+      [radius (v /- center), radius (u /- center)]
+    radius (Vector x y z) = sqrt (x * x + z * z + y * y)
 
 main :: IO ()
 main = do
   getArgsAndInitialize
   
+  -- Read variables
   (angle, iter, str, cmap, exmap) <- argParse
   let edges = LS.edgeExpand iter exmap str cmap edgeLength angle
   let lsystem = composeLSystem edges edgeRadius cylinderSides
   let center = weightedCenter edges
+  let center' = toGLVector center
+  let maxDist = maxDistance edges center
+  let l = Light 0
   
+  -- Setup window & callbacks
   initialDisplayMode $= [DoubleBuffered, WithDepthBuffer]
   createWindow "Awesome stuff."
   rotation <- newIORef 0.0
-  displayCallback $= display rotation center lsystem
+  displayCallback $= display rotation center' lsystem
   idleCallback $= Just (idle rotation)
-  initfn
+  reshapeCallback $= Just reshape
+  
+  -- Lighting
+  ambient l $= lightAmbient
+  diffuse l $= lightDiffuse
+  specular l $= lightSpecular
+  position l $= Vertex4 0 0 (maxDist * 0.7) 1
+  light l $= Enabled
+  lighting $= Enabled
+  normalize $= Enabled
+  depthFunc $= Just Lequal
+  
+  -- Rotate slightly so that is looks like it's being seen from above.
+  --rotate (-20)    ((Vector3 1.0 0.0 0.0)::Vector3 GLfloat)
+  
+  -- Look at it.
+  lookAt
+    ((Vertex3 0 0 ((realToFrac maxDist) * 0.7))::Vertex3 GLdouble)
+    ((Vertex3 0 0 0)::Vertex3 GLdouble)
+    ((Vector3 0 1 0)::Vector3 GLdouble)
+  
   mainLoop
+
+reshape s@(Size w h) = do
+  viewport $= ((Position 0 0), s)
+  matrixMode $= Projection
+  loadIdentity
+  let near   = 0.001
+  let far    = 40
+  let fov    = pi / 4
+  let top    = near * tan fov
+  let aspect = fromIntegral w / fromIntegral h
+  let right  = top * aspect
+  frustum (-right) right (-top) top near far
+  matrixMode $= Modelview 0
 
