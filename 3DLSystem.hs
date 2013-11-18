@@ -19,35 +19,13 @@ import qualified Data.Map as Map
 rotationSpeed :: GLfloat
 rotationSpeed = 1
 
-edges :: (Floating a, Eq a) => [LS.Edge a]
-edges = LS.edgeExpand 3 (Map.fromList [('X', "+|Xa+|XaX/a+&&XaX-a*&&XaX/a&X/&")]) "X" (Map.fromList [('a', fromColor 1 1 1)]) 0.1 (pi/2)
-
-edgeRadius :: Floating a => a
-edgeRadius = 0.01
-
-lsystem :: Renderable
-lsystem = composeLSystem edges edgeRadius 16
-
--- Finds the weighted center of the edges.
-weightedCenter :: Vector GLfloat
-weightedCenter = foldr (addVecs) v0 edges // fromIntegral (length edges * 2)
-  where
-    addVecs (_, u, w) v = v /+ u /+ w
-
-maxRadius :: GLfloat
-maxRadius = maximum $ concat $ map radii edges
-  where
-    radii (_, v, u) =
-      [radius (v /- weightedCenter), radius (u /- weightedCenter)]
-    radius (Vector x _ z) = sqrt (x * x + z * z)
-
-display :: IORef GLfloat -> DisplayCallback
-display angle = do
+display :: IORef GLfloat -> Vector3 GLfloat -> Renderable -> DisplayCallback
+display rotation center lsystem = do
   clear [ColorBuffer, DepthBuffer]
-  a <- get angle
+  a <- get rotation
   preservingMatrix (do
     rotate a (Vector3 0 1 0)
-    translate $ toGLVector (neg weightedCenter)
+    translate center
     render lsystem)
   swapBuffers
 
@@ -79,17 +57,24 @@ idle angle = do
   angle $~! (+ rotationSpeed)
   postRedisplay Nothing
 
-argParse :: IO (Int, String, Map.Map Char Material, Map.Map Char String)
+argParse :: IO (GLfloat, Int, String, Map.Map Char Material, Map.Map Char String)
 argParse = do
   args <- getArgs
   return (
-    read (head args),
+    read (args!!0) * pi / 180.0,
     read (args!!1),
+    args!!2,
     readMats (tail args),
     readExps (tail args))
 
 readExps :: [String] -> Map.Map Char String
-readExps = undefined
+readExps = Map.fromList . readExps'
+  where
+    readExps' [] = []
+    readExps' (x:xs)
+      | length x >= 3 && take 2 (tail x) == "->" =
+          (head x, drop 3 x) : readExps' xs
+      | otherwise = readExps' xs
 
 readMats :: [String] -> Map.Map Char Material
 readMats = Map.fromList . readMats'
@@ -111,14 +96,46 @@ readMats = Map.fromList . readMats'
       | x >= 'A' && x <= 'F' = ord x - ord 'A' + 10
       | otherwise            = error "Expected hex digit."
 
+edgeLength :: Floating a => a
+edgeLength = 0.1
+
+edgeRadius :: Floating a => a
+edgeRadius = 0.01
+
+cylinderSides :: Num a => a
+cylinderSides = 16
+
+lsystem :: Renderable
+lsystem = composeLSystem edges edgeRadius 16
+
+-- Finds the weighted center of the edges.
+weightedCenter :: [LS.Edge GLfloat] -> Vector3 GLfloat
+weightedCenter edges = toGLVector $ neg $
+  foldr (addVecs) v0 edges // fromIntegral (length edges * 2)
+  where
+    addVecs (_, u, w) v = v /+ u /+ w
+
+--maxRadius :: GLfloat
+--maxRadius = maximum $ concat $ map radii edges
+--  where
+--    radii (_, v, u) =
+--      [radius (v /- weightedCenter), radius (u /- weightedCenter)]
+--    radius (Vector x _ z) = sqrt (x * x + z * z)
+
 main :: IO ()
 main = do
   getArgsAndInitialize
+  
+  (angle, iter, str, cmap, exmap) <- argParse
+  let edges = LS.edgeExpand iter exmap str cmap edgeLength angle
+  let lsystem = composeLSystem edges edgeRadius cylinderSides
+  let center = weightedCenter edges
+  
   initialDisplayMode $= [DoubleBuffered, WithDepthBuffer]
   createWindow "Awesome stuff."
-  angle <- newIORef 0.0
-  displayCallback $= display angle
-  idleCallback $= Just (idle angle)
+  rotation <- newIORef 0.0
+  displayCallback $= display rotation center lsystem
+  idleCallback $= Just (idle rotation)
   initfn
   mainLoop
 
