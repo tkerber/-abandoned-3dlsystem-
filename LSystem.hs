@@ -66,7 +66,6 @@ yaw (p, y, r) a   = (rot y a p, y, rot y a r)
 roll :: Floating a => Orientation a -> a -> Orientation a
 roll (p, y, r) a  = (rot r a p, rot r a y, r)
 
--- TODO roll isn't doing anything! How to get it to do stuff.
 -- The chars, The position vector, and the orientation vector.
 edges :: (Floating a, Eq a) => [Char] -> Map.Map Char Material -> a -> a ->
     [Edge a]

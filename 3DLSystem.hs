@@ -2,9 +2,11 @@ import Graphics.Rendering.OpenGL
 import Graphics.UI.GLUT
 import Graphics
 import Data.IORef
+import Data.Char
 import Primitives
 import Material
 import Vector
+import System.Environment
 import qualified LSystem as LS
 import qualified Data.Map as Map
 
@@ -22,6 +24,9 @@ edges = LS.edgeExpand 3 (Map.fromList [('X', "+|Xa+|XaX/a+&&XaX-a*&&XaX/a&X/&")]
 
 edgeRadius :: Floating a => a
 edgeRadius = 0.01
+
+lsystem :: Renderable
+lsystem = composeLSystem edges edgeRadius 16
 
 -- Finds the weighted center of the edges.
 weightedCenter :: Vector GLfloat
@@ -43,15 +48,15 @@ display angle = do
   preservingMatrix (do
     rotate a (Vector3 0 1 0)
     translate $ toGLVector (neg weightedCenter)
-    drawEdges edges edgeRadius 16)
+    render lsystem)
   swapBuffers
 
 lightDiffuse :: Color4 GLfloat
-lightDiffuse = Color4 0.1 0.1 0.1 1.0
+lightDiffuse = Color4 0.2 0.2 0.2 1.0
 lightAmbient :: Color4 GLfloat
-lightAmbient = Color4 0.1 0.1 0.1 1.0
+lightAmbient = Color4 0.0 0.0 0.0 1.0
 lightSpecular :: Color4 GLfloat
-lightSpecular = Color4 0.2 0.2 0.2 1.0
+lightSpecular = Color4 0.0 0.0 0.0 1.0
 
 lightPosition :: Vertex4 GLfloat
 lightPosition = Vertex4 (-1.0) 0 (-1.0) 1.0
@@ -74,6 +79,38 @@ idle angle = do
   angle $~! (+ rotationSpeed)
   postRedisplay Nothing
 
+argParse :: IO (Int, String, Map.Map Char Material, Map.Map Char String)
+argParse = do
+  args <- getArgs
+  return (
+    read (head args),
+    read (args!!1),
+    readMats (tail args),
+    readExps (tail args))
+
+readExps :: [String] -> Map.Map Char String
+readExps = undefined
+
+readMats :: [String] -> Map.Map Char Material
+readMats = Map.fromList . readMats'
+  where
+    readMats' [] = []
+    readMats' (x:xs)
+      | length x == 8 && x!!1 == '#' =
+          (x!!0, matFromHex (drop 2 x)):readMats' xs
+      | otherwise = readMats' xs
+    matFromHex x = fromColor
+        (fromIntegral (intFromHex $ take 2 x) / 255.0)
+        (fromIntegral (intFromHex $ take 2 $ drop 2 x) / 255.0)
+        (fromIntegral (intFromHex $ take 2 $ drop 4 x) / 255.0)
+    intFromHex [] = 0
+    intFromHex (x:xs) = hexDigit x + (intFromHex xs) * 16
+    hexDigit x
+      | x >= '0' && x <= '9' = ord x - ord '0'
+      | x >= 'a' && x <= 'f' = ord x - ord 'a' + 10
+      | x >= 'A' && x <= 'F' = ord x - ord 'A' + 10
+      | otherwise            = error "Expected hex digit."
+
 main :: IO ()
 main = do
   getArgsAndInitialize
@@ -84,3 +121,4 @@ main = do
   idleCallback $= Just (idle angle)
   initfn
   mainLoop
+

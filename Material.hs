@@ -7,7 +7,7 @@ module Material(
 import Graphics.Rendering.OpenGL
 
 -- Material color shininess
-data Material = Material (Color4 GLfloat) GLfloat
+data Material = Material (Color4 GLfloat) GLfloat deriving (Show)
 
 material :: Material -> IO ()
 material (Material c s) = do
