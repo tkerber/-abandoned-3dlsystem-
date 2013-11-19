@@ -67,9 +67,9 @@ roll :: Floating a => Orientation a -> a -> Orientation a
 roll (p, y, r) a  = (rot r a p, rot r a y, r)
 
 -- The chars, The position vector, and the orientation vector.
-edges :: (Floating a, Eq a) => [Char] -> Map.Map Char Material -> a -> a ->
-    [Edge a]
-edges xs cmap l angle = fst $ edges' v0 defaultOrientation xs
+edges :: (Floating a, Eq a) => [Char] -> Map.Map Char Material -> a ->
+    (a, a, a) -> [Edge a]
+edges xs cmap l (p, y, r) = fst $ edges' v0 defaultOrientation xs
   where
     -- edges' returns a tuple of [Edge], [Char], with the second being the
     -- characters left over after completion (reattaching).
@@ -77,12 +77,12 @@ edges xs cmap l angle = fst $ edges' v0 defaultOrientation xs
     edges' pos orient (x:xs)
       | x == ']'  = ([], xs)
       | x == '['  = fst rec `tuplePrepend` edges' pos orient (snd rec)
-      | x == '+'  = edges' pos (pitch orient angle)    xs
-      | x == '-'  = edges' pos (pitch orient (-angle)) xs
-      | x == '*'  = edges' pos (yaw   orient angle)    xs
-      | x == '/'  = edges' pos (yaw   orient (-angle)) xs
-      | x == '&'  = edges' pos (roll  orient angle)    xs
-      | x == '|'  = edges' pos (roll  orient (-angle)) xs
+      | x == '+'  = edges' pos (pitch orient p)    xs
+      | x == '-'  = edges' pos (pitch orient (-p)) xs
+      | x == '*'  = edges' pos (yaw   orient y)    xs
+      | x == '/'  = edges' pos (yaw   orient (-y)) xs
+      | x == '&'  = edges' pos (roll  orient r)    xs
+      | x == '|'  = edges' pos (roll  orient (-r)) xs
       | isLower x = (color cmap x, pos, pos') `tupleCons`
           edges' pos' orient xs
       | otherwise = rec
@@ -93,6 +93,6 @@ edges xs cmap l angle = fst $ edges' v0 defaultOrientation xs
     tuplePrepend x (y, z) = (x ++ y, z)
 
 edgeExpand :: (Floating a, Eq a) => Int -> Map.Map Char String -> String ->
-    Map.Map Char Material -> a -> a -> [Edge a]
+    Map.Map Char Material -> a -> (a, a, a) -> [Edge a]
 edgeExpand n m xs = edges (expand n m xs)
 

@@ -39,15 +39,20 @@ idle angle speed' = do
   angle $~! (+ speed)
   postRedisplay Nothing
 
-argParse :: IO (GLfloat, Int, String, Map.Map Char Material, Map.Map Char String)
+argParse :: IO ((GLfloat, GLfloat, GLfloat), Int, String,
+    Map.Map Char Material, Map.Map Char String)
 argParse = do
   args <- getArgs
   return (
-    read (args!!0) * pi / 180.0,
-    read (args!!1),
-    args!!2,
-    readMats (tail args),
-    readExps (tail args))
+    (
+      read (args!!0) * pi / 180.0,
+      read (args!!1) * pi / 180.0,
+      read (args!!2) * pi / 180.0
+    ),
+    read (args!!3),
+    args!!4,
+    readMats (drop 5 args),
+    readExps (drop 5 args))
 
 readExps :: [String] -> Map.Map Char String
 readExps = Map.fromList . readExps'
@@ -106,8 +111,8 @@ main = do
   getArgsAndInitialize
   
   -- Read variables
-  (angle, iter, str, cmap, exmap) <- argParse
-  let edges = LS.edgeExpand iter exmap str cmap edgeLength angle
+  (angles, iter, str, cmap, exmap) <- argParse
+  let edges = LS.edgeExpand iter exmap str cmap edgeLength angles
   let lsystem = composeLSystem edges edgeRadius cylinderSides
   let center = weightedCenter edges
   let center' = toGLVector center
