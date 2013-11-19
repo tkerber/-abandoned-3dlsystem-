@@ -16,9 +16,6 @@ import qualified Data.Map as Map
 -- 
 -- http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.126.1682&rep=rep1&type=pdf
 
-rotationSpeed :: GLfloat
-rotationSpeed = 1
-
 display :: IORef GLfloat -> Vector3 GLfloat -> Renderable -> DisplayCallback
 display rotation center lsystem = do
   clear [ColorBuffer, DepthBuffer]
@@ -36,9 +33,10 @@ lightAmbient = Color4 0.0 0.0 0.0 1.0
 lightSpecular :: Color4 GLfloat
 lightSpecular = Color4 0.0 0.0 0.0 1.0
 
-idle :: IORef GLfloat -> IdleCallback
-idle angle = do
-  angle $~! (+ rotationSpeed)
+idle :: IORef GLfloat -> IORef GLfloat -> IdleCallback
+idle angle speed' = do
+  speed <- get speed'
+  angle $~! (+ speed)
   postRedisplay Nothing
 
 argParse :: IO (GLfloat, Int, String, Map.Map Char Material, Map.Map Char String)
@@ -120,15 +118,20 @@ main = do
   initialDisplayMode $= [DoubleBuffered, WithDepthBuffer]
   createWindow "Awesome stuff."
   rotation <- newIORef 0.0
+  speed <- newIORef 1.0
+  lastSpeed <- newIORef 0.0
+  let view0 = View (realToFrac maxDist * 0.7) 0.0 0.0
+  view <- newIORef view0
   displayCallback $= display rotation center' lsystem
-  idleCallback $= Just (idle rotation)
+  idleCallback $= Just (idle rotation speed)
   reshapeCallback $= Just reshape
+  keyboardMouseCallback $= Just (input speed lastSpeed view)
   
   -- Lighting
   ambient l $= lightAmbient
   diffuse l $= lightDiffuse
   specular l $= lightSpecular
-  position l $= Vertex4 0 0 (maxDist * 0.7) 1
+  position l $= Vertex4 0 0 maxDist 1
   light l $= Enabled
   lighting $= Enabled
   normalize $= Enabled
@@ -138,23 +141,86 @@ main = do
   --rotate (-20)    ((Vector3 1.0 0.0 0.0)::Vector3 GLfloat)
   
   -- Look at it.
-  lookAt
-    ((Vertex3 0 0 ((realToFrac maxDist) * 0.7))::Vertex3 GLdouble)
-    ((Vertex3 0 0 0)::Vertex3 GLdouble)
-    ((Vector3 0 1 0)::Vector3 GLdouble)
+  reposition view0
   
   mainLoop
 
+reshape :: Size -> IO ()
 reshape s@(Size w h) = do
   viewport $= ((Position 0 0), s)
   matrixMode $= Projection
   loadIdentity
   let near   = 0.001
-  let far    = 40
+  let far    = 1000
   let fov    = pi / 4
   let top    = near * tan fov
   let aspect = fromIntegral w / fromIntegral h
   let right  = top * aspect
   frustum (-right) right (-top) top near far
   matrixMode $= Modelview 0
+
+-- distance, yaw, pitch
+data View = View GLdouble GLdouble GLdouble deriving (Show)
+
+reposition :: View -> IO ()
+reposition (View dist yaw pitch) = do
+  loadIdentity
+  lookAt
+    ((Vertex3
+      (cos pitch * sin yaw * dist)
+      (sin pitch * dist)
+      (cos pitch * cos yaw * dist))::Vertex3 GLdouble)
+    ((Vertex3 0 0 0)::Vertex3 GLdouble)
+    ((Vector3
+      (-sin pitch * sin yaw)
+      (cos pitch)
+      (-sin pitch * cos yaw))::Vector3 GLdouble)
+  matrixMode $= Modelview 1
+  return ()
+
+zoom :: IORef View -> (GLdouble -> GLdouble) -> IO ()
+zoom view' f = do
+  (View dist yaw pitch) <- get view'
+  let view = View (f dist) yaw pitch
+  reposition view
+  view' $= view
+  return ()
+
+yawRotate :: IORef View -> GLdouble -> IO ()
+yawRotate view' a = do
+  (View dist yaw pitch) <- get view'
+  let view = View dist (yaw + a) pitch
+  reposition view
+  view' $= view
+  return ()
+
+pitchRotate :: IORef View -> GLdouble -> IO ()
+pitchRotate view' a = do
+  (View dist yaw pitch) <- get view'
+  let view = View dist yaw (limit $ pitch + a)
+  reposition view
+  view' $= view
+  return ()
+  where
+    limit x
+      | x < -(pi / 2) = -(pi / 2)
+      | x > pi / 2    = pi / 2
+      | otherwise     = x
+
+input :: IORef GLfloat -> IORef GLfloat -> IORef View -> KeyboardMouseCallback
+input speed' lastSpeed' view key Down _ _ = case key of
+  (Char ' ') -> (do
+    lastSpeed <- get lastSpeed'
+    speed <- get speed'
+    speed' $= lastSpeed
+    lastSpeed' $= speed
+    return ())
+  (Char '+') -> zoom view (/ 1.01)
+  (Char '-') -> zoom view (* 1.01)
+  (SpecialKey KeyLeft) -> yawRotate view (-0.04)
+  (SpecialKey KeyRight) -> yawRotate view 0.04
+  (SpecialKey KeyUp) -> pitchRotate view 0.04
+  (SpecialKey KeyDown) -> pitchRotate view (-0.04)
+  _ -> return ()
+input _ _ _ _ _ _ _ = return ()
 
