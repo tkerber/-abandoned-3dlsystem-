@@ -10,6 +10,8 @@ import Vector
 import Data.Char
 import qualified Data.Map as Map
 
+-- A looks up a key in a map, and if it finds it returns it's value. If not,
+-- it passes the key to a function instead and returns that.
 getWithDefault :: Ord a => Map.Map a b -> (a -> b) -> a -> b
 getWithDefault m f x
   | x `Map.member` m = m Map.! x
@@ -28,19 +30,7 @@ expand1 map_ = concat . map (getWithDefault map_ (\x -> [x]))
 expand :: Ord a => Int -> Map.Map a [a] -> [a] -> [a]
 expand n map_ = pow n (expand1 map_)
 
--- Special characters:
--- 
--- [ - starts a detach.
--- ] - ends a detch.
--- +, - increase/decrease pitch
--- *, / increase/decrease yaw
--- &, | increase/decrease roll
--- 
--- All other symbols are just colored lines.
-
-black :: Material
-black = fromColor 0 0 0
-
+-- Gets a line's color.
 color :: Map.Map Char Material -> Char -> Material
 color m = getWithDefault m (\_ -> fromColor 1 1 1)
 
@@ -50,23 +40,33 @@ type Edge a = (Material, Vector a, Vector a)
 -- these should be orthogonal unit vectors.
 type Orientation a = (Vector a, Vector a, Vector a)
 
+-- The default orientation is the orientation of in which the "turtle"
+-- tracing the l-system is facing at the start. In our case this is up, i.e.
+-- The roll is a vector in the direction of the y-axis. Pitch and yaw were
+-- chosen more or less arbitrarily.
 defaultOrientation :: Num a => Orientation a
 defaultOrientation = (Vector 1 0 0, Vector 0 0 1, Vector 0 1 0)
 
+-- The direction an object is going is given by the roll axis.
 direction :: Orientation a -> Vector a
 direction (_, _, x) = x
 
 -- Rotate around the pitch axis
 pitch :: Floating a => Orientation a -> a -> Orientation a
-pitch (p, y, r) a = (p, rot p a y, rot p a r)
 -- Rotate around the yaw axis
 yaw :: Floating a => Orientation a -> a -> Orientation a
-yaw (p, y, r) a   = (rot y a p, y, rot y a r)
 -- Rotate around the roll axis
 roll :: Floating a => Orientation a -> a -> Orientation a
-roll (p, y, r) a  = (rot r a p, rot r a y, r)
 
 -- The chars, The position vector, and the orientation vector.
+-- 
+-- Special edges:
+-- [, ] - start/end a detach
+-- +, - - increase/decrease pitch
+-- *, / - increase/decrease yaw
+-- &, | - increase/decrease roll
+-- 
+-- Only lowercase letters are rendered. Any other characters are ignored.
 edges :: (Floating a, Eq a) => [Char] -> Map.Map Char Material -> a ->
     (a, a, a) -> [Edge a]
 edges xs cmap l (p, y, r) = fst $ edges' v0 defaultOrientation xs
@@ -91,6 +91,9 @@ edges xs cmap l (p, y, r) = fst $ edges' v0 defaultOrientation xs
         rec = edges' pos orient xs
     tupleCons x (y, z) = (x : y, z)
     tuplePrepend x (y, z) = (x ++ y, z)
+pitch (p, y, r) a = (p, rot p a y, rot p a r)
+yaw (p, y, r) a   = (rot y a p, y, rot y a r)
+roll (p, y, r) a  = (rot r a p, rot r a y, r)
 
 edgeExpand :: (Floating a, Eq a) => Int -> Map.Map Char String -> String ->
     Map.Map Char Material -> a -> (a, a, a) -> [Edge a]

@@ -4,21 +4,24 @@ module Primitives(
   cylinder,
   sphere
 ) where
--- I am not working with OpenGL's vector type for as much of this program as
--- I can, as my grasp of monads is shaky at best, and that of OpenGL even
--- worse.
+
 import Vector
 import Material
 import Graphics.Rendering.OpenGL
-import Graphics.UI.GLUT as GLUT
+import Graphics.UI.GLUT
 
+-- Like show, but it actually shows it!
 class Render a where
   render :: a -> IO ()
 
-data Renderable = forall a . (Render a, Show a) => Renderable a
-
-instance Show Renderable where
-  show (Renderable x) = show x
+-- Interesting non-standard way making heterogenius objects of arbitrary
+-- instances of a typeclass.
+-- 
+-- Of course, all information about the objects is lost, apart from the fact
+-- that they are renderable. I'm not sure why there didn't seem to be a
+-- standard way to do this in haskell, heterogenius collections seems like
+-- a fairly common problem.
+data Renderable = forall a . Render a => Renderable a
 
 instance Render Renderable where
   render (Renderable x) = render x
@@ -32,6 +35,7 @@ instance Render () where
   render x = return ()
 
 -- material, the normal to the quad, then its 4 verticies.
+-- (? What is the normal used for? Determining which side is in/outside?)
 data Quad =
   Quad Material (Normal3 GLfloat) (Vertex3 GLfloat) (Vertex3 GLfloat)
     (Vertex3 GLfloat) (Vertex3 GLfloat)
@@ -47,6 +51,10 @@ instance Render Quad where
     vertex v4
 
 -- material, start point, end point, radius, sides
+-- 
+-- I later saw that GLUT had a method to render cylinders built in, but I'd
+-- already written this and it would have required figuring out how to rotate
+-- them as they were always drawn along the z-axis.
 cylinder :: Material -> Vector GLfloat -> Vector GLfloat -> GLfloat -> Int ->
     Renderable
 cylinder m s e r' n = Renderable $ [Quad
@@ -65,47 +73,18 @@ cylinder m s e r' n = Renderable $ [Quad
     orth = orthogonal d
     n' = fromIntegral n
 
---drawQuads :: Material -> [Quad] -> IO ()
---drawQuads m q = do
---  mapM (\(n, v1, v2, v3, v4) -> do
---    renderPrimitive Quads $ do
---      material m
---      normal (toNorm n)
---      vertex (toVertex v1)
---      vertex (toVertex v2)
---      vertex (toVertex v3)
---      vertex (toVertex v4)) q
---  return ()
-
--- I later saw that GLUT had a method to render cylinders built in, but I'd
--- already written this and it would have required figuring out how to rotate
--- them as they were always drawn along the z-axis.
---drawCylinder :: Material -> Vector GLfloat -> Vector GLfloat -> GLfloat -> Int -> IO ()
---drawCylinder m s e r n = drawQuads m $ cylinder s e r n
-
 -- material -> position -> radius -> fineness (however that this implemented)
 data GLUTObject =
-  GLUTObject Material (Vector3 GLfloat) GLUT.Object
+  GLUTObject Material (Vector3 GLfloat) Object
   deriving (Show)
 
 instance Render GLUTObject where
   render (GLUTObject m pos obj) = preservingMatrix (do
     translate pos
     material m
-    GLUT.renderObject GLUT.Solid obj)
+    renderObject Solid obj)
 
 sphere :: Material -> Vector GLfloat -> GLfloat -> Int -> Renderable
 sphere m v r n = Renderable $ GLUTObject m (toGLVector v) $
-    GLUT.Sphere' (realToFrac r) (fromIntegral n) (fromIntegral n)
+    Sphere' (realToFrac r) (fromIntegral n) (fromIntegral n)
 
---drawSphere :: Material -> Vector GLfloat -> GLfloat -> Int -> IO()
---drawSphere m v r n = do
---  preservingMatrix (do
---    translate (toGLVector v)
---    material m
---    GLUT.renderObject GLUT.Solid (GLUT.Sphere' (realToFrac r) (fromIntegral n) (fromIntegral n)))
-
--- a = Vector 1 2 3 `dot` Vector 3 2 1
---cylinder :: Vector GLfloat -> Vector GLfloat -> GLfloat -> Int ->
---    [[Vector GLfloat]]
---cylinder from to width i = undefined
