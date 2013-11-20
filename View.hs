@@ -69,13 +69,10 @@ pitchRotate view' a = do
 -- left/right - rotate left or right.
 -- up/down - rotate up or down.
 -- space - pause/resume auto rotation.
-input :: IORef GLfloat -> IORef GLfloat -> IORef View -> KeyboardMouseCallback
-input speed' lastSpeed' view key Down _ _ = case key of
+input :: IORef GLfloat -> IORef Bool-> IORef View -> KeyboardMouseCallback
+input speed rotating view key Down _ _ = case key of
   (Char ' ') -> (do
-    lastSpeed <- get lastSpeed'
-    speed <- get speed'
-    speed' $= lastSpeed
-    lastSpeed' $= speed
+    rotating $~! not
     return ())
   (Char '+') -> zoom view (/ 1.01)
   (Char '-') -> zoom view (* 1.01)
@@ -83,6 +80,12 @@ input speed' lastSpeed' view key Down _ _ = case key of
   (SpecialKey KeyRight) -> yawRotate view 0.04
   (SpecialKey KeyUp) -> pitchRotate view 0.04
   (SpecialKey KeyDown) -> pitchRotate view (-0.04)
+  (Char '>') -> (do
+    speed $~! (+ 0.1)
+    return ())
+  (Char '<') -> (do
+    speed $~! (+ (-0.1))
+    return ())
   _ -> return ()
 -- How many underscores is that?
 input _ _ _ _ _ _ _ = return ()

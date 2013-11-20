@@ -37,10 +37,14 @@ display rotation center lsystem = do
   swapBuffers
 
 -- Modifies the rotation angle as needed.
-idle :: IORef GLfloat -> IORef GLfloat -> IdleCallback
-idle angle speed' = do
-  speed <- get speed'
-  angle $~! (+ speed)
+idle :: IORef GLfloat -> IORef GLfloat -> IORef Bool-> IdleCallback
+idle angle speed' rotating' = do
+  rotating <- get rotating'
+  if rotating then do
+    speed <- get speed'
+    angle $~! (+ speed)
+  else
+    return ()
   postRedisplay Nothing
 
 -- Finds the weighted center of the edges.
@@ -103,15 +107,15 @@ initDisplay angles iter str cmap exmap = do
   createWindow "Awesome stuff."
   rotation <- newIORef 0.0
   speed <- newIORef 1.0
-  lastSpeed <- newIORef 0.0
+  rotating <- newIORef True
   -- Why 0.7? I don't know, it looked sort of right. And who cares, you can
   -- zoom anyhow.
   let view0 = View (realToFrac maxDist * 0.7) 0.0 0.0
   view <- newIORef view0
   displayCallback $= display rotation center' lsystem
-  idleCallback $= Just (idle rotation speed)
+  idleCallback $= Just (idle rotation speed rotating)
   reshapeCallback $= Just reshape
-  keyboardMouseCallback $= Just (input speed lastSpeed view)
+  keyboardMouseCallback $= Just (input speed rotating view)
   
   -- Lighting
   ambient l $= Color4 0 0 0 1
