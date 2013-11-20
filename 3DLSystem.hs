@@ -99,6 +99,15 @@ help = unlines [
     "",
     "Any character which isn't one of these characters or a lowercase",
     "character will be ignored by the rendering. They can be useful as",
-    "variables during expansion."
+    "variables during expansion.",
+    "",
+    "While running the following keys can be used to affect the animation:",
+    "",
+    "+     - Zoom in",
+    "-     - Zoom out",
+    "Up    - Rotate upwards",
+    "Down  - Rotate downwards",
+    "Left  - Rotate left",
+    "Right - Rotate right"
   ]
 

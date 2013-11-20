@@ -20,6 +20,7 @@ reposition (View dist yaw pitch) = do
       (sin pitch * dist)
       (cos pitch * cos yaw * dist))::Vertex3 GLdouble)
     ((Vertex3 0 0 0)::Vertex3 GLdouble)
+    -- This is the "up" vector. Why is this is? Math.
     ((Vector3
       (-sin pitch * sin yaw)
       (cos pitch)

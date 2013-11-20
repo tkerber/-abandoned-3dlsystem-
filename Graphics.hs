@@ -1,5 +1,4 @@
 module Graphics(
-  composeLSystem,
   initDisplay
 ) where
 
